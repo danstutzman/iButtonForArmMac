@@ -1,0 +1,35 @@
+CC = gcc
+
+INSTALL_DIR=/Library/Java/Extensions
+
+CFLAGS = -g -fno-common -c -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin -I$(PWD)/../../libusb-compat-0.1.7/libusb -Wno-error=implicit-function-declaration
+LFLAGS = -dynamiclib -framework IOKit -framework CoreFoundation -L$(PWD)/../../libusb-compat-0.1.7/libusb/.libs -lusb -o $@
+
+ONEWIREOBJS = libusbllnk.o libusbds2490.o libusbnet.o libusbses.o libusbtran.o owerr.o crcutil.o
+OBJS = $(PWD)/../../libusb-compat-0.1.7/libusb/.libs/libusb.a $(PWD)/../../libusb-1.0.24/libusb/.libs/libusb-1.0.a PDKAdapterUSB.o $(ONEWIREOBJS)
+
+all: libonewireUSB.jnilib
+
+com/dalsemi/onewire/adapter/PDKAdapterUSB.class: java/src/com/dalsemi/onewire/adapter/PDKAdapterUSB.java
+	javac -d . -classpath .:OneWireAPI.jar $<
+
+PDKAdapterUSB.h: PDKAdapterUSB.class
+	javah -jni -classpath .:OneWireAPI.jar com.dalsemi.onewire.adapter.PDKAdapterUSB
+	mv com_dalsemi_onewire_adapter_PDKAdapterUSB.h native/PDKAdapterUSB.h
+
+libonewireUSB.jnilib: $(OBJS) com/dalsemi/onewire/adapter/PDKAdapterUSB.class
+	$(CC) $(LFLAGS) $(OBJS)
+
+%.o: native/%.c
+	$(CC) $(CFLAGS) $<
+
+install: libonewireUSB.jnilib
+	cp libonewireUSB.jnilib $(INSTALL_DIR)
+	
+test: libonewireUSB.jnilib
+	javac -d . -classpath .:OneWireAPI.jar java/test/TestMain.java
+	java -classpath .:OneWireAPI.jar TestMain
+
+clean:
+	rm -f *.o *.jnilib TestMain.class com/dalsemi/onewire/adapter/PDKAdapterUSB.class
+
